@@ -395,9 +395,9 @@ const downloadEncryptedMedia = async (req, res) => {
 
     // Create a MessageMedia object similar to what downloadMedia returns
     const messageMedia = {
-      mimetype: message.mimetype,
+      mimetype: message._data.mimetype,
       data: buffer.toString('base64'),
-      filename: `${message.id.id}.${mime.extension(message.mimetype) || 'dat'}`
+      filename: `${message._data.id.id}.${mime.extension(message._data.mimetype)}`
     }
 
     res.json({ success: true, messageMedia })
