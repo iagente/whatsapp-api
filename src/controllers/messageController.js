@@ -1,5 +1,7 @@
 const { sessions } = require('../sessions')
 const { sendErrorResponse } = require('../utils')
+const { decryptMedia } = require('@open-wa/wa-decrypt')
+const mime = require('mime-types')
 
 /**
  * Get message by its ID from a given chat using the provided client.
@@ -358,10 +360,57 @@ const unstar = async (req, res) => {
   }
 }
 
+/**
+ * Downloads and decrypts media from a message.
+ * @async
+ * @function downloadEncryptedMedia
+ * @param {Object} req - The request object.
+ * @param {Object} res - The response object.
+ * @param {string} req.params.sessionId - The session ID.
+ * @param {string} req.body.messageId - The message ID.
+ * @param {string} req.body.chatId - The chat ID.
+ * @returns {Promise<void>} - A Promise that resolves with no value when the function completes.
+ * @throws {Error} If message is not found or if there's an error during decryption.
+ */
+const downloadEncryptedMedia = async (req, res) => {
+  try {
+    const { messageId, chatId } = req.body
+    const client = sessions.get(req.params.sessionId)
+    const message = await _getMessageById(client, messageId, chatId)
+    if (!message) { throw new Error('Message not Found') }
+
+    // TODO: Check if the message has key data for decryption and data has key for encrypted media and message.hasMedia key exists and is true
+    // Prepare the message object for decryption
+    const decryptionMessage = {
+      deprecatedMms3Url: message._data.deprecatedMms3Url || message.url,
+      mimetype: message._data.mimetype,
+      mediaKey: message._data.mediaKey,
+      filehash: message._data.filehash,
+      type: message._data.type,
+      size: message._data.size
+    }
+
+    // Decrypt the media
+    const buffer = await decryptMedia(decryptionMessage)
+
+    // Create a MessageMedia object similar to what downloadMedia returns
+    const messageMedia = {
+      mimetype: message.mimetype,
+      data: buffer.toString('base64'),
+      filename: `${message.id.id}.${mime.extension(message.mimetype) || 'dat'}`
+    }
+
+    res.json({ success: true, messageMedia })
+  } catch (error) {
+    sendErrorResponse(res, 500, error.message)
+  }
+}
+
 module.exports = {
   getClassInfo,
   deleteMessage,
   downloadMedia,
+  downloadEncryptedMedia,
   forward,
   getInfo,
   getMentions,
