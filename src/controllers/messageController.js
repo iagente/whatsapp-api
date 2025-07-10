@@ -379,7 +379,18 @@ const downloadEncryptedMedia = async (req, res) => {
     const message = await _getMessageById(client, messageId, chatId)
     if (!message) { throw new Error('Message not Found') }
 
-    // TODO: Check if the message has key data for decryption and data has key for encrypted media and message.hasMedia key exists and is true
+    if (!message._data.mediaKey) {
+      throw new Error('Message does not have key data for decryption')
+    }
+
+    if (!message.hasMedia || message.hasMedia !== true) {
+      throw new Error('Message does not have media')
+    }
+
+    if (!message._data.mimetype || !message._data.filehash || !message._data.type) {
+      throw new Error('Message does not have required data for encrypted media')
+    }
+
     // Prepare the message object for decryption
     const decryptionMessage = {
       deprecatedMms3Url: message._data.deprecatedMms3Url || message.url,
